@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   apps: [
     {
       name: "urbanesta-backend",
@@ -21,8 +21,8 @@ export default {
       
       // Load environment variables from .env files
       env_file: {
-        development: ".env.local",
-        production: ".env.production"
+        development: ".env",
+        production: ".env"
       },
       
       // PM2 Process Configuration
