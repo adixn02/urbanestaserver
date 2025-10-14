@@ -1,0 +1,116 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# Production logs and runtime files
+logs/
+*.log
+pm2.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+dump.rdb
+
+Environment variables (CRITICAL - Never commit these)
+.env
+.env.*
+env.production
+env.development
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Coverage and testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/cache/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Security and sensitive files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# AWS and cloud files
+.aws/
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Docker files
+.dockerignore
+docker-compose.override.yml
+
+# PM2 files
+.pm2/
+ecosystem.config.js.backup
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Lock files (keep package-lock.json)
+yarn.lock
+yarn.lock
+pnpm-lock.yaml
+
+# Runtime and process files
+*.pid
+*.seed
+*.pid.lock
+
+# Optional: Deployment configs (uncomment if sensitive)
+nginx-production.conf
+# deploy-production.sh
+health-check.sh
+.env
