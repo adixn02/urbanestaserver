@@ -229,7 +229,7 @@ router.post('/verify-otp', async (req, res) => {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           path: '/',
-          domain: process.env.NODE_ENV === 'production' ? '.13.233.123.52' : undefined
+          domain: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_DOMAIN : 'localhost'
         };
         
         const refreshCookieOptions = {
@@ -238,7 +238,7 @@ router.post('/verify-otp', async (req, res) => {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           path: '/',
-          domain: process.env.NODE_ENV === 'production' ? '.13.233.123.52' : undefined
+          domain: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_DOMAIN : 'localhost'
         };
 
         res.cookie('urbanesta_token', accessToken, cookieOptions);
