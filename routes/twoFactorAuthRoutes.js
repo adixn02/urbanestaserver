@@ -226,19 +226,17 @@ router.post('/verify-otp', async (req, res) => {
         const cookieOptions = {
           maxAge: 30 * 60 * 1000, // 30 minutes for access token
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: process.env.NODE_ENV === 'production' && req.secure,
           sameSite: 'lax',
-          path: '/',
-          domain: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_DOMAIN : 'localhost'
+          path: '/'
         };
         
         const refreshCookieOptions = {
           maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for refresh token
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: process.env.NODE_ENV === 'production' && req.secure,
           sameSite: 'lax',
-          path: '/',
-          domain: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_DOMAIN : 'localhost'
+          path: '/'
         };
 
         res.cookie('urbanesta_token', accessToken, cookieOptions);

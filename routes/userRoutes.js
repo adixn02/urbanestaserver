@@ -47,10 +47,9 @@ router.post('/refresh-token', async (req, res) => {
     const cookieOptions = {
       maxAge: 30 * 60 * 1000, // 30 minutes
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && req.secure,
       sameSite: 'lax',
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_DOMAIN : 'localhost'
     };
     
     res.cookie('urbanesta_token', newAccessToken, cookieOptions);
@@ -76,17 +75,15 @@ router.post('/logout', (req, res) => {
     res.clearCookie('urbanesta_token', {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && req.secure,
       sameSite: 'lax',
-      domain: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_DOMAIN : 'localhost'
     });
     
     res.clearCookie('urbanesta_refresh_token', {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' && req.secure,
       sameSite: 'lax',
-      domain: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_DOMAIN : 'localhost'
     });
     
     res.json({

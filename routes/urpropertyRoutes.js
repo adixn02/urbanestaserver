@@ -48,7 +48,7 @@ router.get('/dropdown-data', async (req, res) => {
 // GET /api/properties - Get all properties with optional filtering
 router.get('/', async (req, res) => {
   try {
-    const { type, status, city, category, subcategory, page = 1, limit = 50 } = req.query;
+    const { type, status, city, category, subcategory, page = 1, limit = 50, sort = 'createdAt', order = 'desc' } = req.query;
     
     // Build filter object
     const filter = {};
@@ -73,12 +73,16 @@ router.get('/', async (req, res) => {
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
+    // Build sort object
+    const sortOrder = order === 'asc' ? 1 : -1;
+    const sortObj = { [sort]: sortOrder };
+    
     // Get properties with pagination and populate references
     const properties = await Managedproperty.find(filter)
       .populate('category', 'name deepSubcategories')
       .populate('city', 'name state localities')
       .populate('builder', 'name slug')
-      .sort({ createdAt: -1 })
+      .sort(sortObj)
       .skip(skip)
       .limit(parseInt(limit));
     
