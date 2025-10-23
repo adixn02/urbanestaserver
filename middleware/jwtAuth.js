@@ -82,7 +82,7 @@ export const generateToken = (user) => {
   };
   
   return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '30m'
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m' // Shorter expiration for security
   });
 };
 
@@ -95,7 +95,7 @@ export const generateRefreshToken = (user) => {
   };
   
   return jwt.sign(payload, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '1d' // Shorter refresh token expiration
   });
 };
 

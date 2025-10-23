@@ -1,5 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { body, validationResult } from 'express-validator';
+import csurf from '@dr.pogodin/csurf';
 
 // Security middleware configuration
 export const securityConfig = {
@@ -26,12 +28,12 @@ export const securityConfig = {
     }
   }),
 
-  // Rate limiting configurations
+  // Rate limiting configurations - Using environment variables
   rateLimits: {
     // General API rate limiting
     general: rateLimit({
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200,
       message: {
         error: "Too many requests from this IP, please try again later.",
         retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
@@ -59,6 +61,18 @@ export const securityConfig = {
       max: parseInt(process.env.RATE_LIMIT_UPLOAD_MAX) || 5,
       message: {
         error: "Upload rate limit exceeded. Please try again later.",
+        retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+      },
+      standardHeaders: true,
+      legacyHeaders: false
+    }),
+
+    // Auth rate limiting
+    auth: rateLimit({
+      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+      max: parseInt(process.env.RATE_LIMIT_AUTH_MAX) || 10,
+      message: {
+        error: "Too many authentication attempts. Please try again later.",
         retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
       },
       standardHeaders: true,
@@ -150,10 +164,55 @@ export const ipWhitelist = (allowedIPs = []) => {
   };
 };
 
+// CSRF Protection middleware
+export const csrfProtection = csurf({ 
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  }
+});
+
+// Input validation middleware using express-validator
+export const validateInput = (validations) => {
+  return async (req, res, next) => {
+    // Run validations
+    await Promise.all(validations.map(validation => validation.run(req)));
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+    
+    next();
+  };
+};
+
+// Common validation rules
+export const validationRules = {
+  email: body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  password: body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  phone: body('phone').isMobilePhone().withMessage('Valid phone number is required'),
+  name: body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
+  city: body('city').trim().isLength({ min: 2, max: 50 }).withMessage('Valid city is required'),
+  title: body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Title must be 5-100 characters'),
+  description: body('description').trim().isLength({ min: 10, max: 1000 }).withMessage('Description must be 10-1000 characters'),
+  price: body('price').isNumeric().isFloat({ min: 0 }).withMessage('Valid price is required'),
+  minPrice: body('minPrice').isNumeric().isFloat({ min: 0 }).withMessage('Valid minimum price is required'),
+  maxPrice: body('maxPrice').isNumeric().isFloat({ min: 0 }).withMessage('Valid maximum price is required')
+};
+
 export default {
   securityConfig,
   validateRequest,
   validateApiKey,
   validateRequestSize,
-  ipWhitelist
+  ipWhitelist,
+  csrfProtection,
+  validateInput,
+  validationRules
 };

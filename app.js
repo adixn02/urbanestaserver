@@ -8,7 +8,7 @@ import session from "express-session";
 import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
 import monitoring from "./utils/monitoring.js";
-import { securityConfig, validateRequest, validateApiKey } from "./middleware/security.js";
+import { securityConfig, validateRequest, validateApiKey, csrfProtection } from "./middleware/security.js";
 
 // Import routes
 import propertyRoutes from "./routes/urpropertyRoutes.js";
@@ -19,6 +19,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import twoFactorAuthRoutes from "./routes/twoFactorAuthRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import leadRoutes from "./routes/leadRoutes.js";
 
 // Firebase removed - using 2Factor.in for SMS OTP
 
@@ -63,11 +64,10 @@ app.use(session({
   }
 }));
 
-// Production Rate Limiting Configuration
+// SECURE Rate Limiting Configuration - Using environment variables
 const generalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  // max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // limit each IP to 100 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200, // limit each IP to 200 requests per windowMs
   message: {
     error: "Too many requests from this IP, please try again later.",
     retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
@@ -80,12 +80,24 @@ const generalLimiter = rateLimit({
   }
 });
 
-// Stricter rate limiting for uploads
+// Stricter rate limiting for uploads - Using environment variables
 const uploadLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_UPLOAD_MAX) || 5, // Stricter limit for uploads
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_UPLOAD_MAX) || 5, // limit each IP to 5 uploads per windowMs
   message: {
     error: "Upload rate limit exceeded. Please try again later.",
+    retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Auth rate limiting - Using environment variables
+const authLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_AUTH_MAX) || 10, // limit each IP to 10 auth attempts per windowMs
+  message: {
+    error: "Too many authentication attempts. Please try again later.",
     retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
   },
   standardHeaders: true,
@@ -95,31 +107,27 @@ const uploadLimiter = rateLimit({
 // Apply general rate limiting to all routes
 app.use(generalLimiter);
 
-// CORS configuration
+// SECURE CORS configuration - Only allow specific domains
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Get allowed origins from environment variables
-    const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : [];
-    
+    // Define allowed origins based on environment
     const allowedOrigins = process.env.NODE_ENV === 'production' 
       ? [
           process.env.FRONTEND_URL, 
           process.env.CLOUDFRONT_URL,
-          process.env.CLOUDFRONT_DOMAIN,
-          ...corsOrigins
+          process.env.CLOUDFRONT_DOMAIN
         ].filter(Boolean)
       : [
           "http://localhost:3000", 
           "http://localhost:3001", 
-          "http://localhost:3002",
           "http://127.0.0.1:3000",
-          "http://127.0.0.1:3001", 
-          "http://127.0.0.1:3002",
-          ...corsOrigins
+          "http://127.0.0.1:3001"
         ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests) in development only
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
     
     // Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
@@ -129,10 +137,10 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: process.env.CORS_CREDENTIALS === 'true' || true,
-  methods: process.env.CORS_METHODS ? process.env.CORS_METHODS.split(',').map(m => m.trim()) : ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: process.env.CORS_ALLOWED_HEADERS ? process.env.CORS_ALLOWED_HEADERS.split(',').map(h => h.trim()) : ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
-  exposedHeaders: process.env.CORS_EXPOSED_HEADERS ? process.env.CORS_EXPOSED_HEADERS.split(',').map(h => h.trim()) : ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+  credentials: true, // Only allow credentials from trusted origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
+  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
   maxAge: 86400, // 24 hours
   preflightContinue: false,
   optionsSuccessStatus: 200
@@ -143,6 +151,15 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
+
+// CSRF Protection (only for non-API routes)
+app.use((req, res, next) => {
+  // Skip CSRF for API routes and health checks
+  if (req.path.startsWith('/api/') || req.path === '/healthz') {
+    return next();
+  }
+  return csrfProtection(req, res, next);
+});
 
 // Firebase removed - using 2Factor.in for SMS OTP authentication
 
@@ -194,15 +211,16 @@ app.get("/healthz", (req, res) => {
   });
 });
 
-// Routes
+// Routes with appropriate rate limiting
 app.use("/api/properties", propertyRoutes);
 app.use("/api/builders", builderRoutes);
 app.use("/api/cities", cityRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/upload", uploadLimiter, uploadRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/2factor", twoFactorAuthRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/2factor", authLimiter, twoFactorAuthRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/leads", leadRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
