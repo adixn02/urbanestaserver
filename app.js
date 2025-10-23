@@ -115,17 +115,34 @@ const corsOptions = {
       ? [
           process.env.FRONTEND_URL, 
           process.env.CLOUDFRONT_URL,
-          process.env.CLOUDFRONT_DOMAIN
+          process.env.CLOUDFRONT_DOMAIN,
+          // Allow server's own IP for health checks and internal requests
+          "http://10.0.2.133",
+          "http://10.0.2.133:80",
+          "http://10.0.2.133:3012",
+          "http://127.0.0.1",
+          "http://127.0.0.1:80",
+          "http://127.0.0.1:3012",
+          "http://localhost",
+          "http://localhost:80",
+          "http://localhost:3012"
         ].filter(Boolean)
       : [
           "http://localhost:3000", 
           "http://localhost:3001", 
           "http://127.0.0.1:3000",
-          "http://127.0.0.1:3001"
+          "http://127.0.0.1:3001",
+          "http://127.0.0.1:3012",
+          "http://localhost:3012"
         ];
     
     // Allow requests with no origin (like mobile apps or curl requests) in development only
     if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // Allow requests with no origin for health checks and internal API calls in production
+    if (!origin) {
       return callback(null, true);
     }
     
