@@ -20,6 +20,8 @@ import authRoutes from "./routes/authRoutes.js";
 import twoFactorAuthRoutes from "./routes/twoFactorAuthRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import leadRoutes from "./routes/leadRoutes.js";
+import propertyViewsRoutes from "./routes/propertyViewsRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 
 // Firebase removed - using 2Factor.in for SMS OTP
 
@@ -116,16 +118,17 @@ const corsOptions = {
           process.env.FRONTEND_URL, 
           process.env.CLOUDFRONT_URL,
           process.env.CLOUDFRONT_DOMAIN,
-          // Allow server's own IP for health checks and internal requests
+          // Allow frontend server IP for API calls
+          "http://10.0.1.147",
+          "http://10.0.1.147:80",
+          "http://10.0.1.147:3000",
+          // Allow backend server IP for health checks
           "http://10.0.2.133",
           "http://10.0.2.133:80",
-          "http://10.0.2.133:3012",
           "http://127.0.0.1",
           "http://127.0.0.1:80",
-          "http://127.0.0.1:3012",
           "http://localhost",
-          "http://localhost:80",
-          "http://localhost:3012"
+          "http://localhost:80"
         ].filter(Boolean)
       : [
           "http://localhost:3000", 
@@ -238,6 +241,8 @@ app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/2factor", authLimiter, twoFactorAuthRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/leads", leadRoutes);
+app.use("/api/property-views", propertyViewsRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -252,7 +257,9 @@ app.get("/", (req, res) => {
       cities: "/api/cities",
       categories: "/api/categories",
       auth: "/api/auth",
-      "2factor": "/api/2factor"
+      "2factor": "/api/2factor",
+      "property-views": "/api/property-views",
+      analytics: "/api/analytics"
     }
   });
 });
