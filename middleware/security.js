@@ -55,18 +55,6 @@ export const securityConfig = {
       legacyHeaders: false
     }),
 
-    // Upload rate limiting
-    upload: rateLimit({
-      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-      max: parseInt(process.env.RATE_LIMIT_UPLOAD_MAX) || 5,
-      message: {
-        error: "Upload rate limit exceeded. Please try again later.",
-        retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
-      },
-      standardHeaders: true,
-      legacyHeaders: false
-    }),
-
     // Auth rate limiting
     auth: rateLimit({
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,

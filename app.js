@@ -15,7 +15,6 @@ import propertyRoutes from "./routes/urpropertyRoutes.js";
 import builderRoutes from "./routes/builderRoutes.js";
 import cityRoutes from "./routes/cityRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
-import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import twoFactorAuthRoutes from "./routes/twoFactorAuthRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -82,17 +81,6 @@ const generalLimiter = rateLimit({
   }
 });
 
-// Stricter rate limiting for uploads - Using environment variables
-const uploadLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_UPLOAD_MAX) || 5, // limit each IP to 5 uploads per windowMs
-  message: {
-    error: "Upload rate limit exceeded. Please try again later.",
-    retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
 
 // Auth rate limiting - Using environment variables
 const authLimiter = rateLimit({
@@ -119,12 +107,12 @@ const corsOptions = {
           process.env.CLOUDFRONT_URL,
           process.env.CLOUDFRONT_DOMAIN,
           // Allow frontend server IP for API calls
-          "http://10.0.1.147",
-          "http://10.0.1.147:80",
-          "http://10.0.1.147:3000",
+          "http://10.0.1.217",
+          "http://10.0.1.217:80",
+          "http://10.0.1.217:3000",
           // Allow backend server IP for health checks
-          "http://10.0.2.133",
-          "http://10.0.2.133:80",
+          "http://10.0.2.144",
+          "http://10.0.2.144:80",
           "http://127.0.0.1",
           "http://127.0.0.1:80",
           "http://localhost",
@@ -236,7 +224,6 @@ app.use("/api/properties", propertyRoutes);
 app.use("/api/builders", builderRoutes);
 app.use("/api/cities", cityRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("/api/upload", uploadLimiter, uploadRoutes);
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/2factor", authLimiter, twoFactorAuthRoutes);
 app.use("/api/user", userRoutes);

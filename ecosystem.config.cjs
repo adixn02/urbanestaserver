@@ -92,7 +92,7 @@ module.exports = {
   deploy: {
     production: {
       user: "ubuntu",
-      host: ["10.0.2.133"],
+      host: ["10.0.2.144"],
       ref: "origin/main",
       repo: "git@github.com:your-username/urbanesta-backend.git",
       path: "/var/www/urbanesta-backend",

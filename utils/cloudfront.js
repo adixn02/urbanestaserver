@@ -18,7 +18,7 @@ export function convertToCloudFrontUrl(s3Url) {
       const key = pathParts.slice(1).join('/');
       
       // Replace with your CloudFront domain
-      const cloudFrontDomain = process.env.CLOUDFRONT_SIDE_URL || process.env.CLOUDFRONT_DOMAIN || 'dhkq2r1k6k5w8.cloudfront.net';
+      const cloudFrontDomain = process.env.CLOUDFRONT_SIDE_URL || process.env.CLOUDFRONT_DOMAIN || 'd8pw2hr56z2an.cloudfront.net';
       // Ensure we're using the correct CloudFront URL format
       if (cloudFrontDomain.includes('https://')) {
         return `${cloudFrontDomain}/${key}`;
