@@ -85,6 +85,9 @@ credentials/
 .terraform/
 *.tfstate
 *.tfstate.backup
+*accessKeys*.csv
+*credentials*.csv
+*_accessKeys.csv
 
 # Docker files
 .dockerignore

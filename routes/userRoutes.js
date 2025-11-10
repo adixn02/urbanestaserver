@@ -5,6 +5,7 @@ import Managedproperty from '../models/property.js';
 import logger from '../utils/logger.js';
 import jwt from 'jsonwebtoken';
 import cookie from 'cookie';
+import { convertToCloudFrontUrl } from '../utils/cloudfront.js';
 
 const router = express.Router();
 
@@ -263,9 +264,16 @@ router.put('/profile', authenticateJWT, async (req, res) => {
 // Get user's watchlist
 router.get('/watchlist', authenticateJWT, async (req, res) => {
   try {
-    // Find user and populate watchlist
+    // Find user and populate watchlist with all necessary fields
     const user = await User.findById(req.user.id)
-      .populate('watchlist');
+      .populate({
+        path: 'watchlist',
+        populate: [
+          { path: 'category', select: 'name deepSubcategories' },
+          { path: 'city', select: 'name state localities' },
+          { path: 'builder', select: 'name slug' }
+        ]
+      });
     
     if (!user) {
       return res.status(404).json({
@@ -274,15 +282,98 @@ router.get('/watchlist', authenticateJWT, async (req, res) => {
       });
     }
 
+    // Process watchlist properties similar to main properties route
+    const processedWatchlist = (user.watchlist || []).map(property => {
+      if (!property) return null; // Skip null/undefined properties
+      
+      const propertyObj = property.toObject ? property.toObject() : property;
+      
+      // Populate subcategory name if not set
+      if (!propertyObj.subcategoryName && propertyObj.category && propertyObj.subcategory) {
+        try {
+          const category = propertyObj.category;
+          if (category.deepSubcategories) {
+            const subcategory = category.deepSubcategories.find(
+              sub => sub._id.toString() === propertyObj.subcategory
+            );
+            if (subcategory) {
+              propertyObj.subcategoryName = subcategory.name;
+            }
+          }
+        } catch (error) {
+          console.error('Error populating subcategory name:', error);
+        }
+      }
+      
+      // Populate locality name for location field
+      if (propertyObj.city && propertyObj.city.localities && propertyObj.location) {
+        try {
+          const locality = propertyObj.city.localities.find(
+            loc => loc._id.toString() === propertyObj.location
+          );
+          if (locality) {
+            propertyObj.localityName = locality.name;
+          }
+        } catch (error) {
+          console.error('Error populating locality name:', error);
+        }
+      }
+      
+      // Get display image based on property type
+      let displayImage = null;
+      if (propertyObj.type === 'regular') {
+        if (propertyObj.projectImages && propertyObj.projectImages.length > 0) {
+          displayImage = propertyObj.projectImages[0];
+        } else if (propertyObj.images && propertyObj.images.length > 0) {
+          displayImage = propertyObj.images[0];
+        }
+      } else if (propertyObj.type === 'builder') {
+        displayImage = propertyObj.wallpaperImage || 
+                      (propertyObj.projectImages && propertyObj.projectImages.length > 0 ? propertyObj.projectImages[0] : null);
+      }
+      
+      // Convert display image to CloudFront URL
+      if (displayImage) {
+        propertyObj.displayImage = convertToCloudFrontUrl(displayImage);
+      }
+      
+      // Convert all image URLs to CloudFront URLs
+      if (propertyObj.projectImages) {
+        propertyObj.projectImages = propertyObj.projectImages.map(img => convertToCloudFrontUrl(img));
+      }
+      if (propertyObj.images) {
+        propertyObj.images = propertyObj.images.map(img => convertToCloudFrontUrl(img));
+      }
+      
+      // Ensure we have images array for frontend
+      if (!propertyObj.images || propertyObj.images.length === 0) {
+        if (propertyObj.projectImages && propertyObj.projectImages.length > 0) {
+          propertyObj.images = propertyObj.projectImages;
+        } else if (displayImage) {
+          propertyObj.images = [displayImage];
+        } else {
+          propertyObj.images = [];
+        }
+      }
+      
+      // Get category name for display
+      if (propertyObj.category && propertyObj.category.name) {
+        propertyObj.categoryName = propertyObj.category.name;
+      }
+      
+      return propertyObj;
+    }).filter(property => property !== null); // Remove null entries
+
     res.json({
       success: true,
-      watchlist: user.watchlist || []
+      watchlist: processedWatchlist
     });
   } catch (error) {
     logger.error('Get watchlist error', { error: error.message });
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to get watchlist' 
+      error: 'Failed to get watchlist',
+      details: error.message
     });
   }
 });
@@ -299,6 +390,15 @@ router.post('/watchlist', authenticateJWT, async (req, res) => {
       });
     }
 
+    // Validate property exists
+    const property = await Managedproperty.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        error: 'Property not found'
+      });
+    }
+
     // Find user and add property to watchlist
     const user = await User.findById(req.user.id);
     
@@ -309,26 +409,35 @@ router.post('/watchlist', authenticateJWT, async (req, res) => {
       });
     }
     
-    // Check if property already in watchlist
-    if (!user.watchlist.includes(propertyId)) {
+    // Check if property already in watchlist (convert both to strings for comparison)
+    const propertyIdStr = propertyId.toString();
+    const isAlreadyInWatchlist = user.watchlist.some(id => id.toString() === propertyIdStr);
+    
+    if (!isAlreadyInWatchlist) {
       user.watchlist.push(propertyId);
       await user.save();
+      logger.info('Property added to watchlist', { 
+        userId: req.user.id, 
+        propertyId: propertyIdStr,
+        propertyTitle: property.projectName || property.title
+      });
+    } else {
+      logger.info('Property already in watchlist', { 
+        userId: req.user.id, 
+        propertyId: propertyIdStr
+      });
     }
-    
-    logger.info('Property added to watchlist', { 
-      userId: req.user.id, 
-      propertyId 
-    });
 
     res.json({
       success: true,
-      message: 'Property added to watchlist'
+      message: isAlreadyInWatchlist ? 'Property already in watchlist' : 'Property added to watchlist'
     });
   } catch (error) {
     logger.error('Add to watchlist error', { error: error.message });
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to add to watchlist' 
+      error: 'Failed to add to watchlist',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
