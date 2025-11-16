@@ -21,6 +21,7 @@ import userRoutes from "./routes/userRoutes.js";
 import leadRoutes from "./routes/leadRoutes.js";
 import propertyViewsRoutes from "./routes/propertyViewsRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import homeVideoRoutes from "./routes/homeVideoRoutes.js";
 
 // Firebase removed - using 2Factor.in for SMS OTP
 
@@ -230,6 +231,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/property-views", propertyViewsRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/home-videos", homeVideoRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -246,7 +248,8 @@ app.get("/", (req, res) => {
       auth: "/api/auth",
       "2factor": "/api/2factor",
       "property-views": "/api/property-views",
-      analytics: "/api/analytics"
+      analytics: "/api/analytics",
+      "home-videos": "/api/home-videos"
     }
   });
 });
