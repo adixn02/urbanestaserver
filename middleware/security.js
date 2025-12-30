@@ -184,7 +184,7 @@ export const validateInput = (validations) => {
 export const validationRules = {
   email: body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   password: body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  phone: body('phone').isMobilePhone().withMessage('Valid phone number is required'),
+  phone: body('phone').isMobilePhone('en-IN', { strictMode: false }).withMessage('Valid phone number is required'),
   name: body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
   city: body('city').trim().isLength({ min: 2, max: 50 }).withMessage('Valid city is required'),
   title: body('title').trim().isLength({ min: 5, max: 100 }).withMessage('Title must be 5-100 characters'),

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node app.js",
-    "dev": "cp env.development .env && nodemon app.js",
+    "dev": " nodemon app.js",
     "dev:env": "cp env.development .env",
     "prod:env": "cp env.production .env",
     "build": "echo 'No build step required for backend'",
