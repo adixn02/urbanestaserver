@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Managedproperty from '../models/property.js';
 import Category from '../models/category.js';
 import City from '../models/City.js';
@@ -46,7 +47,7 @@ router.get('/dropdown-data', async (req, res) => {
 // GET /api/properties - Get all properties with optional filtering
 router.get('/', async (req, res) => {
   try {
-    const { type, status, city, category, subcategory, page = 1, limit = 50, sort = 'createdAt', order = 'desc' } = req.query;
+    const { type, status, city, category, subcategory, builder, page = 1, limit = 50, sort = 'createdAt', order = 'desc' } = req.query;
     
     // Build filter object
     const filter = {};
@@ -67,6 +68,49 @@ router.get('/', async (req, res) => {
     }
     if (category) filter.category = category;
     if (subcategory) filter.subcategory = subcategory;
+    if (builder) {
+      // Filter by builder ID
+      let builderObjectId = null;
+      
+      if (builder.match(/^[0-9a-fA-F]{24}$/)) {
+        // It's an ObjectId - convert to mongoose ObjectId to ensure proper matching
+        builderObjectId = new mongoose.Types.ObjectId(builder);
+      } else {
+        // It's a builder slug, find the builder first
+        const builderDoc = await Builder.findOne({ slug: builder });
+        if (builderDoc) {
+          builderObjectId = builderDoc._id;
+        } else {
+          // If builder not found by slug, try to find by name (case insensitive)
+          const builderByName = await Builder.findOne({ name: new RegExp(builder, 'i') });
+          if (builderByName) {
+            builderObjectId = builderByName._id;
+          }
+        }
+      }
+      
+      if (builderObjectId) {
+        // Set filter with ObjectId - mongoose will handle the matching
+        // Use $or to match both ObjectId and string representations
+        const builderFilter = {
+          $or: [
+            { builder: builderObjectId },
+            { builder: builderObjectId.toString() },
+            { builder: builder } // Also try the original value in case it's a string
+          ]
+        };
+        
+        // Merge with existing filter, preserving other filters
+        const { builder: _, ...restFilter } = filter;
+        Object.assign(filter, restFilter, builderFilter);
+      } else {
+        // If builder not found, set filter to match nothing (empty result)
+        filter.builder = { $exists: false };
+      }
+      
+      // Log for debugging
+      console.log(`[Properties API] Filtering by builder: ${builder}, Builder ObjectId: ${builderObjectId ? builderObjectId.toString() : 'NOT FOUND'}`);
+    }
     
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -167,6 +211,11 @@ router.get('/', async (req, res) => {
     
     // Get total count for pagination
     const total = await Managedproperty.countDocuments(filter);
+    
+    // Log for debugging builder filter
+    if (builder) {
+      console.log(`[Properties API] Builder filter results: Found ${properties.length} properties out of ${total} total for builder: ${builder}`);
+    }
     
     res.json({
       success: true,
