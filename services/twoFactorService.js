@@ -212,7 +212,8 @@ class TwoFactorService {
       
       logger.info(`2Factor Verify API: ${verifyUrl.replace(apiKey, '***')}`);
       
-      const response = await axios.get(verifyUrl, { timeout: 10000 });
+      // Increased timeout to 15 seconds for better reliability
+      const response = await axios.get(verifyUrl, { timeout: 15000 });
 
       // Log verification response
       logger.info(`2Factor Verify API Response:`, {
@@ -238,11 +239,28 @@ class TwoFactorService {
       logger.error('Error verifying OTP:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
+        code: error.code
       });
+      
+      // Handle specific error types with user-friendly messages
+      let errorMessage = 'Failed to verify OTP';
+      
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        errorMessage = 'OTP verification timed out. Please check your internet connection and try again.';
+      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+        errorMessage = 'Unable to connect to verification service. Please check your internet connection and try again.';
+      } else if (error.response?.data?.Details) {
+        errorMessage = error.response.data.Details;
+      } else if (error.response?.data?.Message) {
+        errorMessage = error.response.data.Message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       return {
         success: false,
-        error: error.response?.data?.Details || error.response?.data?.Message || error.message || 'Failed to verify OTP'
+        error: errorMessage
       };
     }
   }
